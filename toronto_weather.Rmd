@@ -1,0 +1,65 @@
+---
+title: 'When to Visit Toronto'
+author: 'Alex Yu'
+subtitle: 'A classification model predicting when there will be good weather'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, echo=FALSE, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(rpart)
+library(partykit)
+opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r, message=FALSE, include = FALSE}
+weather <- read_csv('toronto_daily_clean.csv')
+```
+
+```{r, include=FALSE}
+# adds new column that decides if the weather is good or bad
+weather <- weather %>% 
+  mutate('good_weather' = case_when(MEAN_TEMPERATURE >= 16 &
+                     MEAN_TEMPERATURE <= 28 &
+                     TOTAL_PRECIPITATION == 0.0
+                       ~ 'good',
+                     MEAN_TEMPERATURE < 16 |
+                       MEAN_TEMPERATURE > 28 |
+                       TOTAL_PRECIPITATION != 0.0 ~ 'bad'))
+```
+
+```{r, include=FALSE}
+set.seed(1)
+n <-nrow(weather)
+training_indices <- sample(1:n, size=round(0.8*n))
+
+weather <- weather %>% rowid_to_column()
+
+train <- weather %>% filter(rowid %in% training_indices)
+test <- weather %>% filter(!rowid %in% training_indices)
+
+tree1 <- rpart(good_weather ~ LOCAL_DATE, data = train)
+```
+
+```{r, include=FALSE}
+# plot the tree
+plot(as.party(tree1), gp = gpar(cex = 1), type = 'simple')
+```
+
+```{r, echo=FALSE}
+tree1_pred <- predict(tree1, newdata = test, type = 'class')
+test <- table(tree1_pred, test$good_weather)
+test
+```
+
+Accuracy = 84.25%
+Sensitivity (true positive rate) = 61.16%
+Specificity (true negative rate) = 89.38%
+
+# Bibliography
+
+*Environment and Climate Change Canada* (2018, September 27). Climate Data Extraction Tool. Aem. https://climate-change.canada.ca/climate-data/#/daily-climate-data
+
